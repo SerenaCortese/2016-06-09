@@ -9,6 +9,7 @@ import java.util.List;
 
 import it.polito.tdp.formulaone.model.Driver;
 import it.polito.tdp.formulaone.model.DriverIdMap;
+import it.polito.tdp.formulaone.model.FantaPilota;
 import it.polito.tdp.formulaone.model.Season;
 
 public class FormulaOneDAO {
@@ -108,5 +109,61 @@ public class FormulaOneDAO {
 			e.printStackTrace();
 			throw new RuntimeException("SQL Query Error");
 		}
+	}
+
+	public List<FantaPilota> getFantaPiloti(int circuitId, Driver driver) {
+		
+		List<FantaPilota> result = new ArrayList<>();
+		
+		String sql = "SELECT DISTINCT year FROM races, laptimes, circuits,drivers "
+				+ "WHERE circuits.circuitId = ? AND drivers.driverId = ? "
+				+ "AND laptimes.driverId = drivers.driverId AND circuits.circuitId = races.circuitId "
+				+ "AND laptimes.raceId = races.raceId";
+		
+		String sql2 = "SELECT milliseconds FROM races, laptimes, circuits,drivers "
+				+ "WHERE circuits.circuitId = ? AND drivers.driverId = ? "
+				+ "AND laptimes.driverId = drivers.driverId AND circuits.circuitId = races.circuitId "
+				+ "AND laptimes.raceId = races.raceId AND year = ? ORDER BY lap ASC";
+		try {
+			Connection conn = ConnectDB.getConnection();
+			PreparedStatement st = conn.prepareStatement(sql);
+			st.setInt(1, circuitId);
+			st.setInt(2, driver.getDriverId());
+			ResultSet rs = st.executeQuery();
+
+			
+			while (rs.next()) {
+				int year = rs.getInt("year");
+				
+				FantaPilota fp = new FantaPilota(year, new ArrayList<Integer>());
+				result.add(fp);
+			}
+
+			conn.close();
+			
+			for(FantaPilota fp : result) {
+				conn = ConnectDB.getConnection();
+				st = conn.prepareStatement(sql2);
+				st.setInt(1, circuitId);
+				st.setInt(2, driver.getDriverId());
+				st.setInt(3, fp.getYear());
+				rs = st.executeQuery();
+				
+				List<Integer> lapTimes = new ArrayList<>();
+				
+				while(rs.next()) {
+					lapTimes.add(rs.getInt("milliseconds"));
+				}
+				conn.close();
+				fp.setLapTimes(lapTimes);
+
+			}
+			
+			return result;
+		} catch (SQLException e) {
+			e.printStackTrace();
+			throw new RuntimeException("SQL Query Error");
+		}
+
 	}
 }
